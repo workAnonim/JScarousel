@@ -1,0 +1,950 @@
+<html><head><meta charset="utf-8"/>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style2.css">
+<script id="main">function onLoad()
+  {
+    /*  mix variants for menu and sequence types */
+    if (editMode == 0)
+      mixAnswers();
+    
+    var qImage = document.getElementById("q_image");
+    if (qImage == null)
+    {
+      document.getElementById("question_img").style.display = "none";
+      document.getElementById("question_img").parentNode.parentNode.style.display = "none";
+    }
+    
+    /*  draw image for image selection question type  */
+    var aImage = document.getElementById("a_image");
+    if (aImage != null)
+    {      
+      /* draw canvas for selection drawing*/
+      var rect = aImage.getBoundingClientRect();
+      var canvas = document.getElementById("i_canvas");
+      
+      if ((editMode == 0) || (editMode == 1))
+      {
+        canvas.onmousedown = canvasMouseDown;
+        canvas.onmouseup = canvasMouseUp;
+        canvas.onmousemove = canvasMouseMove;
+        canvas.onmouseleave = canvasMouseLeave;
+        canvas.onclick = canvasMouseClick;
+        document.getElementById("answer_img").onscroll = imageScrolled;
+      }
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      aImage.style.display = "none";
+      document.getElementById("ans_image_row").style.display = "";
+      document.getElementById("ans_table_row").style.display = "none";
+      
+      refreshCanvas();
+    }  
+    else
+    {
+      document.getElementById("ans_table_row").style.display = "";
+      document.getElementById("ans_image_row").style.display = "none";
+    }
+    
+    if (editMode == 0)
+    {
+      /* create answer button */
+      var tableRow;
+      if (aImage != null)
+        tableRow = document.getElementById("ans_image_row");
+      else
+        tableRow = document.getElementById("ans_table_row");
+      
+      var bCell = tableRow.getElementsByTagName("td")[0];
+      bCell.innerHTML = "";
+      var ansB = document.createElement("button");
+      ansB.id = "ans_button";
+      ansB.onclick = answer;
+      bCell.appendChild(ansB);
+    }
+    
+    var textArea = document.getElementById("ans_text");
+    if (textArea != null)
+    {
+      textArea.value = "";
+      if (answerType == 2)
+      {
+        textArea.placeholder = "ПОЛЕ ВВОДА ОТВЕТОВ";
+        if (typeof onTextInputKeyPress == 'function')
+          textArea.onkeypress = onTextInputKeyPress;
+      }
+      else if (answerType == 3)
+        textArea.placeholder = "ПОЛЕ ВВОДА ОПРЕДЕЛЕНИЯ";
+      
+      if (editMode != 0)
+        textArea.readOnly = true;
+    }
+    
+    var answerTable = document.getElementById("answers");
+    if (answerType == 4)
+    {    
+      var items = answerTable.getElementsByTagName("input"); 
+      for (var i=0; i != items.length; i++)
+        items[i].style.textAlign = "center";
+      
+      if (editMode == 0)
+      {
+        /* create validators for inputs */    
+        for (var i=0; i != items.length; i++)
+          items[i].oninput = onPositionInput;
+      }
+      else if (editMode == 2)
+      {
+        for (var i=0; i != items.length; i++)
+          items[i].readOnly = true; 
+      }
+    }
+    
+    if ((answerType == 1) ||
+        (answerType == 2) ||
+        (answerType == 3) || 
+        (answerType == 5) ||
+        (answerType == 6))
+      answerTable.style.width = "100%";
+    
+    if (answerType == 0)
+    {
+      var items = answerTable.getElementsByTagName("td");     
+      for (var i=0; i != items.length; i++)
+      {
+        items[i].classList.add("unselected_cell");
+        if (editMode == 0)
+          items[i].onclick = tableCellClicked;
+      }
+    }
+      
+    if ((editMode == 2) || (editMode == 3))
+    {
+      showAnswers(userAnswers);
+      showCorrectAnswersIfNeeded();
+    }  
+    
+    printHints();  
+    resizeImageDivs();
+  }
+  
+  function drawRectButton(x1, y1, x2, y2, color, dashed, bWidth)
+  {
+    var canvas = document.getElementById("i_canvas");
+    var ctx = canvas.getContext('2d');
+    ctx.strokeStyle = color;
+    ctx.lineWidth = bWidth;
+    
+    if (dashed)
+      ctx.setLineDash([5, 5]);
+    else
+      ctx.setLineDash([]);
+      
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1, y2);
+    ctx.lineTo(x2, y2);
+    ctx.lineTo(x2, y1);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+  
+  function drawOvalButton(x1, y1, x2, y2, color, dashed, bWidth)
+  {
+    var canvas = document.getElementById("i_canvas");
+    var ctx = canvas.getContext('2d');
+    ctx.strokeStyle = color;
+    ctx.lineWidth = bWidth;
+    
+    if (dashed)
+      ctx.setLineDash([5, 5]);
+    else
+      ctx.setLineDash([]);
+      
+    var centerX = (x1 + x2) / 2;
+    var centerY = (y1 + y2) / 2;
+    
+    var rX = Math.abs(x1 - x2) / 2;
+    var rY = Math.abs(y1 - y2) / 2;
+    
+    var scale = rX / rY;
+    
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.scale(scale, 1);  
+    ctx.beginPath();
+    ctx.arc(0, 0, rY, 0, 2 * Math.PI, false);
+    ctx.restore();
+    ctx.stroke();
+  }
+  
+  function drawButton(idx, color, bigbutton = false)
+  {
+    var canvas = document.getElementById("i_canvas");
+    var iW = canvas.width;
+    var iH = canvas.height;
+  
+    var points = pVariants[idx];
+  
+    var x1 = points[0] * iW;
+    var y1 = points[1] * iH;
+    var x2 = points[2] * iW;
+    var y2 = points[3] * iH;
+    
+    var bLineW = 2;
+    var extendSize = 4;
+    if (bigbutton)
+    {
+      bLineW = 3;
+      
+      if (Math.min(x1, x2) == x1)
+      {
+        x1 -= extendSize;
+        x2 += extendSize;
+      }
+      else
+      {
+        x1 += extendSize;
+        x2 -= extendSize;
+      }
+      
+      if (Math.min(y1, y2) == y1)
+      {
+        y1 -= extendSize;
+        y2 += extendSize;
+      }
+      else
+      {
+        y1 += extendSize;
+        y2 -= extendSize;
+      }
+    }
+  
+    if (points[4] == 1)
+      drawOvalButton(x1, y1, x2, y2, color, false, bLineW);
+    else
+      drawRectButton(x1, y1, x2, y2, color, false, bLineW);
+  }
+  
+  function refreshCanvas()
+  {
+    var canvas = document.getElementById("i_canvas");  
+    var ctx = canvas.getContext('2d');      
+    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    ctx.drawImage(document.getElementById("a_image"), 0, 0);
+  
+    var rect = canvas.getBoundingClientRect();
+    var iW = rect.width;
+    var iH = rect.height;
+    
+    if (editMode == 0)
+    {
+      /*  draw selected variants */
+      showAnswers(userAnswers);
+    }
+    else if (editMode == 1)
+    {
+      /*  draw all variants and mark correct */
+      if (pVariants.length != 0)
+      {
+        for (var i=0; i != pVariants.length; i++)
+        {
+          var color = "#FF1EA0";
+          if (answerType == 1)
+            if (pCorrects.indexOf(i) != -1) 
+              color = "green";
+            
+          if ((answerType == 5) || (answerType == 6))
+            if (pCorrects[i] != 0) 
+              color = "green";  
+            
+          if (userAnswers.indexOf(i) != -1)
+            color = "blue";
+          
+          drawButton(i, color);
+        }
+      }
+    }
+  }
+  
+  function clearCanvas()
+  {
+    if ((initX == -1) || (initY == -1))
+      return;
+      
+    refreshCanvas();
+    initX = -1;
+    initY = -1;
+  }
+        
+  function showAnswers(arr)
+  {
+    if (arr.length == 0)
+      return;
+  
+    if (answerType == 0)
+    {
+      /* ANS_TYPE_MENU*/
+      var answerTable = document.getElementById("answers");
+      var items = answerTable.getElementsByTagName("tr");
+      
+      for (var i=0; i != items.length; i++)
+      {
+        var cell = items[i].getElementsByTagName("td")[1];
+        if (arr.indexOf(i) != -1)
+        {
+          cell.classList.remove("unselected_cell");
+          cell.classList.add("selected_cell");
+        }
+        else
+        {
+          cell.classList.remove("selected_cell");
+          cell.classList.add("unselected_cell");
+        }
+      }
+    }
+    else if ((answerType == 1) || 
+             (answerType == 5) || 
+             (answerType == 6))
+    {
+      /* ANS_TYPE_PICTURE*/
+      for (var i=0; i != arr.length; i++)
+        drawButton(arr[i], "#FF1EA0");
+    }
+    else if ((answerType == 2) || (answerType == 3))
+    {
+      /* ANS_TYPE_KEYBOARD or ANS_TYPE_DEFINITION*/
+      var answerInput = document.getElementById("ans_text");
+      answerInput.value = decodeURIComponent(arr[0]);
+    }
+    else if (answerType == 4)
+    {
+      /* ANS_TYPE_SEQUENCE*/
+      var answerTable = document.getElementById("answers");
+      var items = answerTable.getElementsByTagName("input");
+      
+      for (var i=0; i != items.length; i++)
+        items[i].value = arr[i] + 1;
+    }
+  }
+  
+  function altb(a, b)
+  {
+    /*  returns true if a less than b, otherwise false */
+    return (a%b == a);
+  }
+  
+  function showCorrectAnswersIfNeeded()
+  {
+    document.getElementById("sc").style.display = "none";
+    document.getElementById("sci").style.display = "none";
+    printHints();  
+    
+    if ((document.getElementById("st_fail").style.display != "none") || 
+        (document.getElementById("st_incomlp").style.display != "none"))
+    {
+      if (editMode == 3)
+      {
+        if (typeof nextQuestion == 'function')
+          setTimeout(nextQuestion, 1000);
+      }
+      else
+      {
+        showCorrects();
+        if (typeof nextQuestion == 'function')
+          setTimeout(nextQuestion, 10000);
+      }
+    }
+    
+    if ((document.getElementById("st_correct").style.display != "none") ||
+        (editMode == 3))  
+    {
+      if (typeof nextQuestion == 'function')
+        setTimeout(nextQuestion, 1000);
+    }       
+  }
+  
+  function showCorrects()
+  {
+    if ((answerType == 5) || 
+        (answerType == 6))
+      refreshCanvas();
+   
+    if ((pCorrects.length == 0) || (editMode == 3))
+      return;
+  
+    if (answerType == 0)
+    {
+      /* ANS_TYPE_MENU*/
+      var answerTable = document.getElementById("ans_table_row");
+      var mainTable = answerTable.parentNode;
+      
+      var correctHeaderRow = document.createElement("tr");  
+      mainTable.appendChild(correctHeaderRow);
+      
+      var corrTD = document.createElement("td");
+      corrTD.setAttribute("colspan", "2");
+      correctHeaderRow.appendChild(corrTD); 
+          
+      var corrSpan = document.createElement("div");
+      corrTD.appendChild(corrSpan);
+      corrSpan.setAttribute("id", "correct_ans_header_span");
+      corrSpan.innerHTML = "Правильный ответ:";  
+      
+      var corrAnswer = answerTable.cloneNode(true);
+      mainTable.appendChild(corrAnswer);
+      
+      var items = corrAnswer.getElementsByTagName("tr");
+      
+      for (var i=0; i != items.length; i++)
+      {
+        var cell = items[i].getElementsByTagName("td")[1];
+        if (pCorrects.indexOf(i) != -1)
+        {
+          cell.classList.remove("unselected_cell");
+          cell.classList.add("selected_cell");
+        }
+        else
+        {
+          cell.classList.remove("selected_cell");
+          cell.classList.add("unselected_cell");
+        }
+      }
+    }
+    else if (answerType == 1)
+    {
+      /* ANS_TYPE_PICTURE*/
+      if (document.getElementById("picture_corr_text") == null)
+      {
+        var answerTable = document.getElementById("ans_table_row");
+        var mainTable = answerTable.parentNode;
+        
+        var correctHeaderRow = document.createElement("tr");  
+        correctHeaderRow.id = "picture_corr_text";
+        mainTable.appendChild(correctHeaderRow);
+        
+        var corrTD = document.createElement("td");
+        corrTD.setAttribute("colspan", "2");
+        correctHeaderRow.appendChild(corrTD); 
+            
+        var corrSpan = document.createElement("div");
+        corrTD.appendChild(corrSpan);
+        corrSpan.setAttribute("id", "correct_ans_header_span");
+        corrSpan.innerHTML = "Правильные ответы отмечены зеленой рамкой";  
+      }
+      
+      for (var i=0; i != pCorrects.length; i++)
+      {
+        drawButton(pCorrects[i], "green", true);
+      }
+    }
+    else if ((answerType == 2) || (answerType == 3))
+    {
+      /* ANS_TYPE_KEYBOARD or ANS_TYPE_DEFINITION*/
+      var answerTable = document.getElementById("ans_table_row");
+      var mainTable = answerTable.parentNode;
+      
+      var correctHeaderRow = document.createElement("tr");  
+      mainTable.appendChild(correctHeaderRow);
+      
+      var corrTD = document.createElement("td");
+      corrTD.setAttribute("colspan", "2");
+      correctHeaderRow.appendChild(corrTD); 
+          
+      var corrSpan = document.createElement("div");
+      corrTD.appendChild(corrSpan);
+      corrSpan.setAttribute("id", "correct_ans_header_span");
+      corrSpan.innerHTML = "Правильный ответ:";  
+      
+      var corrAnswer = answerTable.cloneNode(true);
+      mainTable.appendChild(corrAnswer);
+          
+      var answerInput;
+      if (answerType == 2)
+        answerInput = corrAnswer.getElementsByTagName("input")[0];
+      else
+        answerInput = corrAnswer.getElementsByTagName("textarea")[0];
+      
+      answerInput.value = decodeURIComponent(pCorrects[0]);
+    }
+    else if (answerType == 4)
+    {
+      /* ANS_TYPE_SEQUENCE*/
+      var answerTable = document.getElementById("ans_table_row");
+      var mainTable = answerTable.parentNode;
+      
+      var correctHeaderRow = document.createElement("tr");  
+      mainTable.appendChild(correctHeaderRow);
+      
+      var corrTD = document.createElement("td");
+      corrTD.setAttribute("colspan", "2");
+      correctHeaderRow.appendChild(corrTD); 
+          
+      var corrSpan = document.createElement("div");
+      corrTD.appendChild(corrSpan);
+      corrSpan.setAttribute("id", "correct_ans_header_span");
+      corrSpan.innerHTML = "Правильный ответ:";  
+      
+      var corrAnswer = answerTable.cloneNode(true);
+      mainTable.appendChild(corrAnswer);
+              
+      var items = corrAnswer.getElementsByTagName("input");
+      for (var i=0; i != items.length; i++)
+        items[i].value = pCorrects[i] + 1;
+    }
+    
+    printHints();  
+    resizeImageDivs();
+  }
+  
+  function resizeImageDivs()
+  {
+    var computedStyle = getComputedStyle(document.body);
+    var targetH = window.innerHeight;
+    targetH -= parseInt(computedStyle.marginTop);
+    targetH -= parseInt(computedStyle.marginBottom);
+    var currentH = document.getElementById("main_t").offsetHeight;
+    
+    var imgDiv;
+    var imgTag;
+    
+    if ((answerType == 1) || 
+        (answerType == 5) || 
+        (answerType == 6))
+    {
+      imgDiv = document.getElementById("answer_img");
+      imgTag = document.getElementById("i_canvas");
+    }
+    else
+    {
+      imgDiv = document.getElementById("question_img");
+      imgTag = document.getElementById("q_image");
+    }
+    
+    if (!altb(currentH, targetH))
+    {
+      var newH = imgDiv.offsetHeight - currentH + targetH;
+      imgDiv.style.height = newH + "px";
+      imgDiv.style.overflow = "none";
+    }
+    
+    if (imgTag != null)
+      if (!altb(parseInt(getComputedStyle(imgTag).width), parseInt(getComputedStyle(imgDiv).width)))
+        imgDiv.style.overflow = "scroll";
+  }  
+  
+  function printHints()
+  {
+    var hintDiv = document.getElementById("ans_hint");
+    var hintText = "";
+    
+    if (answerType == 0)
+    {
+      /* ANS_TYPE_MENU*/
+      hintText = "Выбор (отмена выбора) ответа осуществляется кликом левой кнопки мыши.";
+    }
+    else if (answerType == 1)
+    {
+      /* ANS_TYPE_PICTURE*/
+      hintText = "Выбор (отмена выбора) осуществляется кликом левой кнопки мыши.";
+    }
+    else if (answerType == 5)
+    {
+      hintText = "Выбор (отмена выбора) осуществляется кликом левой кнопки мыши.";
+    }
+    else if (answerType == 6)
+    {
+      hintText = "Выбор (отмена выбора) осуществляется кликом левой кнопки мыши.";
+    }
+    else if (answerType == 2)
+    {
+      /* ANS_TYPE_KEYBOARD*/
+      if (pCorrects.length == 0)
+      {
+        hintText = "Введите ответ:";
+      }
+      else
+      {    
+        var corr = decodeURIComponent(pCorrects[0]);
+        var parts = corr.split(";");
+        if (parts.length == 1)
+          hintText = "Введите ответ:";
+        else
+          hintText = "Введите ответы. Ввод каждого ответа завершите нажатием клавиши \"Enter\"";
+      }
+    }
+    else if (answerType == 3)
+    {
+      /* ANS_TYPE_DEFINITION*/
+      hintText = "Введите определение:";
+    }
+    else if (answerType == 4)
+    {
+      /*ANS_TYPE_SEQUENCE*/
+      hintText = "Укажите номер для каждого действия (элемента)";
+    }
+    
+    hintDiv.innerHTML = hintText;
+    
+    var ansButton = document.getElementById("ans_button");
+    ansButton.title = "Проверить ответ и перейти к следующему заданию";
+    document.getElementById("sc").innerHTML = "Показать правильный ответ";
+    document.getElementById("sci").innerHTML = "Показать правильный ответ";
+    document.getElementById("st_correct").innerHTML = "Ответ - правильный";
+    document.getElementById("fail_span").innerHTML = "Ответ - неправильный";
+    document.getElementById("incompl_span").innerHTML = "Ответ - неполный";
+    document.getElementById("next_button").title = "Следующее задание";
+  }
+  
+  function onParentMessage(e)
+  { 
+    if ((answerType == 1) || (answerType == 5))
+    {
+      var imgDiv = document.getElementById("answer_img");
+      imgDiv.style.height = "";
+      imgDiv.style.overflow = "";
+      
+      var imageTag = document.getElementById("a_image");
+      if (imageTag != null)
+       imageTag.style.width = "100%";
+      
+      var imageCanvas = document.getElementById("i_canvas");
+      var divW = parseInt(getComputedStyle(imgDiv).width);
+      var canvW = parseInt(getComputedStyle(imageCanvas).width);
+      if (altb(divW, canvW))
+        imageCanvas.style.width = "100%";
+      
+      refreshCanvas();
+      showAnswers(userAnswers);
+      showCorrectAnswersIfNeeded();
+    }
+    else
+    {
+      var imgDiv = document.getElementById("question_img");
+      imgDiv.style.height = "";
+      imgDiv.style.overflow = "";
+      
+      imageTag = document.getElementById("q_image");
+      if (imageTag != null)
+      {
+        var divW = parseInt(getComputedStyle(imgDiv).width);
+        var imgW = parseInt(getComputedStyle(imageTag).width);
+        if (altb(divW, imgW))
+          imageTag.style.width = "100%";
+      }
+    }
+   
+    var currentH = document.getElementById("main_t").offsetHeight;
+    var computedStyle = getComputedStyle(document.body);
+    currentH += parseInt(computedStyle.marginTop);
+    currentH += parseInt(computedStyle.marginBottom);
+    var par = new Array();
+    par.push(e.data);
+    par.push(currentH);
+    parent.postMessage(JSON.stringify(par), "*");
+  }
+  
+  window.addEventListener("message", onParentMessage);</script><script id="export">function answer()
+  {
+    if (editMode != 0)
+      return;
+    
+    var ans = new Array();
+    
+    if ((answerType == 0) || 
+        (answerType == 1) || 
+        (answerType == 5) || 
+        (answerType == 6))
+    {
+      // ANS_TYPE_MENU or ANS_TYPE_PICTURE or ANS_TYPE_SEQ_PICT
+      ans = userAnswers;
+    }
+    else if ((answerType == 2) || (answerType == 3))
+    {
+      // ANS_TYPE_KEYBOARD or ANS_TYPE_DEFINITION
+      var answerInput = document.getElementById("ans_text");
+      ans.push(encodeURIComponent(answerInput.value));
+    }
+    else if (answerType == 4)
+    {
+      // ANS_TYPE_SEQUENCE
+      var answerTable = document.getElementById("answers");
+      var items = answerTable.getElementsByTagName("input");
+      
+      var hasEmpty = false;
+      for (var i=0; i != items.length; i++)
+      {
+        if (items[i].value == "")
+          userAnswers[i] = -1;
+      }     
+      ans = userAnswers;
+    }
+    
+    var str = JSON.stringify(ans);
+    api.checkAnswer(str);
+  }  
+              
+  var initX = -1;
+  var initY = -1;
+        
+  function randomIdx(maxIdx)
+  {
+    var r = maxIdx * Math.random();
+    return Math.round(r);
+  }
+        
+  function mixAnswers()
+  {          
+    if ((answerType == 0) || (answerType == 4))
+    {
+      var table = document.getElementById("answers");
+      var rows = table.getElementsByTagName("tr");
+      var tableBody;
+      var copy = new Array();
+  
+      for (var i = rows.length - 1; i != -1; i--)
+      {
+        var row = rows[i];
+        copy.push(row.cloneNode(true));
+        tableBody = row.parentNode;
+        tableBody.removeChild(row);
+      }
+      
+      while(copy.length != 0)
+      {
+        var idx = randomIdx(copy.length - 1);
+        tableBody.appendChild(copy[idx]);
+        copy.splice(idx, 1);
+      }
+    } 
+  }
+  
+  function canvasMouseDown(e)
+  {     
+    if (editMode == 1)
+    {
+      var canvas = document.getElementById("i_canvas");      
+      var rect = canvas.getBoundingClientRect();
+      initX = e.pageX - rect.left;
+      initY = e.pageY - rect.top;
+    }
+  }
+  
+  function canvasMouseUp(e)
+  {
+    if (editMode == 1)
+    {
+      if ((initX == -1) || (initY == -1))
+        return;
+      
+      var canvas = document.getElementById("i_canvas");
+      var rect = canvas.getBoundingClientRect();
+      var x = e.pageX - rect.left;
+      var y = e.pageY - rect.top;
+      
+      if (altb(Math.abs(x - initX), 10) || altb(Math.abs(y - initY), 10))
+        return;
+           
+      var data = "[" + initX / rect.width + "," + initY / rect.height + "," + x / rect.width+ "," + y / rect.height + ",0 ]";      
+      api.addPictureAnswer(data);
+      clearCanvas();
+    }
+  }
+  
+  function canvasMouseMove(e)
+  {
+    var canvas = document.getElementById("i_canvas");
+    var rect = canvas.getBoundingClientRect();
+    var x = e.pageX - rect.left;
+    var y = e.pageY - rect.top;
+  
+    if (editMode == 0)
+    {
+      refreshCanvas();       
+      var butt = buttonForPosition(x, y)
+      if (butt != -1)
+        if (userAnswers.indexOf(butt) == -1)
+          drawButton(butt, "blue");  
+    }
+    else if (editMode == 1)
+    {
+      if ((initX == -1) || (initY == -1))
+        return;
+      
+      refreshCanvas();
+      drawRectButton(initX, initY, x, y, "#FF1EA0", true, 1);
+    }
+  }
+  
+  function canvasMouseClick(e)
+  {
+    if (editMode == 0)
+    {
+      var canvas = document.getElementById("i_canvas");
+      var rect = canvas.getBoundingClientRect();
+      var x = e.pageX - rect.left;
+      var y = e.pageY - rect.top;
+      
+      var butt = buttonForPosition(x, y);
+      if (butt != -1)
+      {
+        var pos = userAnswers.indexOf(butt);
+        if (pos == -1)
+          userAnswers.push(butt);
+        else
+        {
+          if (answerType == 1)
+            userAnswers.splice(pos, 1);
+          else if ((answerType == 5) || (answerType == 6))
+            userAnswers = [];
+        }
+          
+        refreshCanvas();
+      }
+    }
+    else if (editMode == 1)
+    {
+      var canvas = document.getElementById("i_canvas");
+      var rect = canvas.getBoundingClientRect();
+      var x = e.pageX - rect.left;
+      var y = e.pageY - rect.top;
+      
+      var butt = buttonForPosition(x, y);
+      api.selectVariant(butt);
+    }
+  }
+  
+  function buttonForPosition(x, y)
+  {
+    var canvas = document.getElementById("i_canvas");
+    var rect = canvas.getBoundingClientRect();
+    var iW = rect.width;
+    var iH = rect.height;
+            
+    for (var i=0; i != pVariants.length; i++)
+    {
+      var points = pVariants[i];
+      var x1 = points[0] * iW;;
+      var y1 = points[1] * iH;
+      var x2 = points[2] * iW;
+      var y2 = points[3] * iH;
+      
+      if (!altb(x, x1))
+        if (!altb(x2, x))
+          if (!altb(y, y1))
+            if (!altb(y2, y))
+              return i;
+    }
+    
+    return -1;
+  }
+  
+  function canvasMouseLeave(e)
+  {
+    if (editMode == 1) 
+      clearCanvas();
+  }
+  
+  function onPositionInput(e)
+  {
+    var inp = e.currentTarget;
+    var val = Number(inp.value);        
+    
+    if (((val ^ 0) !== val) ||
+          (val == 0))
+    {
+      inp.value = "";
+      userAnswers[inp.getAttribute("idx")] = -1;
+      return;
+    }
+      
+    userAnswers[inp.getAttribute("idx")] = val - 1;
+  }
+        
+  function tableCellClicked(e)
+  {
+    var row = e.currentTarget.parentNode;
+    var cell = row.getElementsByTagName("td")[1];
+    var id = Number(cell.getAttribute("idx"));
+    var pos = userAnswers.indexOf(id);
+    if (pos == -1)
+    {
+      userAnswers.push(id);
+      cell.classList.remove("unselected_cell");
+      cell.classList.add("selected_cell");
+    }
+    else
+    {
+      userAnswers.splice(pos, 1);
+      cell.classList.remove("selected_cell");
+      cell.classList.add("unselected_cell");
+    }
+  }
+  
+  function nextQuestion()
+  {
+    api.loadNextQuestion();
+  }
+  
+  function onTextInputKeyPress(e)
+  {
+    if (e.keyCode == 13)
+    {
+      var inp = e.currentTarget;
+      var text = inp.value;
+      var pos = inp.selectionStart;
+      var newText = text.slice(0, pos) + "; " + text.slice(pos);
+      inp.value = newText;
+    }
+  }
+  
+  function imageScrolled(e)
+  {
+    var imDiv = e.currentTarget;
+    var scLeft = imDiv.scrollLeft;
+    var scTop = imDiv.scrollTop;
+    api.imageScrolled(scLeft, scTop);
+  }
+  
+  function scrollImage(scLeft, scTop)
+  {
+    var imDiv = document.getElementById("answer_img");
+    imDiv.scrollLeft = scLeft;
+    imDiv.scrollTop = scTop;
+  }</script><script id="pictureVariants">var pVariants = [];</script><script id="corrects">var pCorrects = [
+  ]
+  ;</script><script id="editMode">var editMode = 1;</script><script id="answerType">var answerType = 0;</script><script id="userAnswers">var userAnswers = [
+  ]
+  ;</script><script id="diffKoeff">var diffKoeff = 1;</script><script id="answerTime">var answerTime = 120;</script></head>
+  <body style="-webkit-user-select: none;" ondragstart="return false" onload="onLoad()">
+  <table id="main_t">
+  <tr>
+  <td class="im_td">
+  <img id="ques_icon"/>
+  </td>
+  <td><div id="question">
+  <span style=" font-family:'Arial'; font-size:13pt; font-weight:400; font-style:normal;">
+  <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">
+  <span style=" color:#133f6e;">Вопрос</span></p></span></div></td>
+  </tr>
+  <tr>
+  <td class="im_td">&nbsp;</td><td>
+  <div id="question_img">
+    <img id="q_image" src="images/1.jpg"/>
+    <img id="q_image2" src="images/2.jpg"/>
+    <img id="q_image3" src="images/3.jpg"/>
+    <img id="q_image4" src="images/4.jpg"/>
+    <img id="q_image5" src="images/5.jpg"/>
+    <img id="q_image6" src="images/6.jpg"/>
+    <img id="q_image7" src="images/7.jpg"/>
+  </div>
+  </td>
+  </tr>
+  <tr><td class="im_td">
+  <img id="hint_icon"/></td>
+  <td>
+  <div id="ans_hint">&nbsp;</div>
+  </td>
+  </tr>
+  <tr id="ans_table_row"><td class="im_td">&nbsp;</td><td><table id="answers"><tr><td>●</td><td idx="0"><span style=" font-family:'Arial'; font-size:13pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#133f6e;">1</span></p></span></td></tr><tr><td>●</td><td idx="1"><span style=" font-family:'Arial'; font-size:13pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#133f6e;">2</span></p></span></td></tr><tr><td>●</td><td idx="2"><span style=" font-family:'Arial'; font-size:13pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#133f6e;">3</span></p></span></td></tr><tr><td>●</td><td idx="3"><span style=" font-family:'Arial'; font-size:13pt; font-weight:400; font-style:normal;"><p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><span style=" color:#133f6e;">4</span></p></span></td></tr></table></td></tr><tr id="ans_image_row"><td class="im_td">&nbsp;</td><td><div id="answer_img"/></td></tr><tr><td colspan="2"><div style="display: none" id="st_unchecked"><button id="ans_button" onclick="answer()">&nbsp;</button></div><div style="display: none" id="st_correct">&nbsp;</div><div style="display: none" id="st_fail"><span id="fail_span">&nbsp;</span><button id="sc">&nbsp;</button></div><div style="display: none" id="st_incomlp"><span id="incompl_span">&nbsp;</span><button id="sci">&nbsp;</button></div><div id="st_next"><button id="next_button" onclick="nextQuestion()">&nbsp;</button></div></td></tr></table>
+  <script src="script.js"></script>
+</body></html>
