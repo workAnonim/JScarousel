@@ -11,6 +11,7 @@ var divText = document.createElement("div");
 
 divParentImages.className = "parentImages";
 divImages.className = "images";
+divImages.setAttribute("title", "Для увеличения изображения нажмите и удерживайте правую кнопку мыши");
 divText.className = "imagesText";
 
 divText.innerHTML ="Рисунок 1";
