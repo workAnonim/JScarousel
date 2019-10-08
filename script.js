@@ -70,3 +70,58 @@ function changeImage(e)
 
 productImages.forEach(image => image.addEventListener("click", changeImage));
 
+//off context menu
+document.oncontextmenu = function (){return false};
+
+//clink right mouse button on active block
+document.querySelector(".active").onmousedown  = function (e) {
+  if(e.which == 3)
+  {
+    if(document.getElementById('magnifier') == null)
+    {
+      magnifier(e);
+    }
+    else
+      document.getElementById('magnifier').remove();
+  }
+}
+document.querySelector(".active").oncontextmenu = function () {
+  if(document.getElementById('magnifier') != null)
+    document.getElementById('magnifier').remove();
+  };
+
+document.querySelector(".active").onmouseleave = function () {
+  if(document.getElementById('magnifier') != null)
+    document.getElementById('magnifier').remove();
+  };
+
+function magnifier()
+{
+  //koeff - magnifier zoom
+  //delta - 50% magnifier width
+  var koeff = 2;
+  var delta = 87.5;
+
+  var divMagnifier = document.createElement("div");
+
+  divMagnifier.id = "magnifier";
+    
+  var imagesDiv = document.querySelector(".images");
+  var active = document.querySelector(".active");
+    
+  imagesDiv.appendChild(divMagnifier);
+
+  onmousemove = function(e){
+    var offsetsX =  active.offsetLeft;
+    var offsetsY =  active.offsetTop;  
+    //magnifier position
+    divMagnifier.style.left = e.offsetX - divMagnifier.getBoundingClientRect().width/2 + offsetsX + "px";
+    divMagnifier.style.top = e.offsetY - divMagnifier.getBoundingClientRect().height/2 + offsetsY + "px";
+
+    //изображение и отступы от края, чтоб создавался эффект лупы koeff - коэффицент увеличения
+    divMagnifier.style.backgroundImage = "url(" + document.querySelector(".active").src +")";
+    divMagnifier.style.backgroundSize = active.width * koeff + "px " + active.height * koeff + "px";
+    divMagnifier.style.backgroundPosition = "-"+(e.offsetX * koeff  - delta ) + "px " + "-" + (e.offsetY * koeff - delta) +"px";
+  }
+}
+
