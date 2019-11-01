@@ -17,8 +17,8 @@ divText.className = "imagesText";
 divText.innerHTML ="Рисунок 1";
 
 divWrapper.appendChild(divParentImages);
+divParentImages.appendChild(divText);
 divParentImages.appendChild(divImages);
-divParentImages.appendChild(divText)
 
 var imgActive = document.createElement("img");
 imgActive.className = "active";
@@ -41,13 +41,14 @@ for(var i=0; i != imgCount; i++)
   imageInList.className = "item_min_img";
   liImageitem.className = "image-item";
   ulImageList.appendChild(liImageitem);
-  liImageitem.appendChild(imageInList);
   liImageitem.appendChild(textInList);
+  liImageitem.appendChild(imageInList);
 }
 
 const activeImage = document.querySelector(".images .active");
 const product = document.querySelectorAll(".image-list .image-item");
 const productImages = document.querySelectorAll(".image-list img");
+
 
 activeImage.src = productImages[0].src;
 product[0].style.display = "none"; 
@@ -64,7 +65,7 @@ function changeImage(e)
     }
   else
     {
-      product[i].style.display = "block"; 
+      product[i].style.display = "inline-block"; 
     }
   }
 }
