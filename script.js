@@ -111,19 +111,31 @@ function magnifier()
   var imagesDiv = document.querySelector(".images");
   var active = document.querySelector(".active");
     
-  imagesDiv.appendChild(divMagnifier);
-
+  imagesDiv.appendChild(divMagnifier); 
+  var hasPadding = (imagesDiv.offsetWidth - active.offsetWidth)/2;
+  console.log(hasPadding);
+  divMagnifier.style.backgroundImage = "url(" + document.querySelector(".active").src +")";
+  divMagnifier.style.backgroundSize = active.width * koeff + "px " + active.height * koeff + "px";
+  divMagnifier.style.left =  hasPadding > 0 ? getCurCoordsInsideRect().x - delta + hasPadding-8 : getCurCoordsInsideRect().x - delta;
+  divMagnifier.style.top = getCurCoordsInsideRect().y - delta ;
+  console.log(getCurCoordsInsideRect());
+  // divMagnifier.style.backgroundPosition = "-" + (getCurCoordsInsideRect().x * koeff - delta) + "px" + "-" + (getCurCoordsInsideRect().y * koeff - delta) + "px";
   onmousemove = function(e){
     var offsetsX =  active.offsetLeft;
     var offsetsY =  active.offsetTop;  
     //magnifier position
-    divMagnifier.style.left = e.offsetX - divMagnifier.getBoundingClientRect().width/2 + offsetsX + "px";
-    divMagnifier.style.top = e.offsetY - divMagnifier.getBoundingClientRect().height/2 + offsetsY + "px";
+    divMagnifier.style.left = e.offsetX - delta + offsetsX + "px";
+    divMagnifier.style.top = e.offsetY - delta + offsetsY + "px";
 
-    //изображение и отступы от края, чтоб создавался эффект лупы koeff - коэффицент увеличения
-    divMagnifier.style.backgroundImage = "url(" + document.querySelector(".active").src +")";
-    divMagnifier.style.backgroundSize = active.width * koeff + "px " + active.height * koeff + "px";
+    //отступы от края, koeff - коэффицент увеличения
     divMagnifier.style.backgroundPosition = "-"+(e.offsetX * koeff  - delta ) + "px " + "-" + (e.offsetY * koeff - delta) +"px";
   }
+}
+
+function getCurCoordsInsideRect() {
+  var x = event.offsetX == undefined ? event.layerX : event.offsetX;
+  var y = event.offsetY == undefined ? event.layerY : event.offsetY;
+ 
+  return {x:x, y:y};
 }
 
