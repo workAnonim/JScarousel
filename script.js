@@ -97,40 +97,53 @@ document.querySelector(".active").onmouseleave = function () {
     document.getElementById('magnifier').remove();
   };
 
-function magnifier()
-{
-  //koeff - magnifier zoom
-  //delta - 50% magnifier width
-  var koeff = 2;
-  var delta = 87.5;
-
-  var divMagnifier = document.createElement("div");
-
-  divMagnifier.id = "magnifier";
+  function magnifier()
+  {
+    //koeff - magnifier zoom
+    //delta - 50% magnifier width
+    var koeff = 2;
+    var delta = 87.5;
+  
+    var divMagnifier = document.createElement("div");
+  
+    divMagnifier.id = "magnifier";
+      
+    var imagesDiv = document.querySelector(".images");
+    var activeDiv = document.querySelector(".active");
+        
+    imagesDiv.appendChild(divMagnifier); 
+  
+    //hasPadding - the distance between imagesDiv and activeDiv
+    var hasPadding = (imagesDiv.offsetWidth - activeDiv.offsetWidth)/2;
+  
+    divMagnifier.style.backgroundImage = "url(" + document.querySelector(".active").src +")";
+    divMagnifier.style.backgroundSize = activeDiv.width * koeff + "px " + activeDiv.height * koeff + "px";
+  
+    //top end left offsets magnifier
+    if(Math.sign(hasPadding) == 1)
+    {
+      divMagnifier.style.left = getCurCoordsInsideRect().x - delta + hasPadding-8;//scroll 16px/2
+    }
+    else
+    {
+      divMagnifier.style.left = getCurCoordsInsideRect().x - delta;
+    }
+    divMagnifier.style.top = getCurCoordsInsideRect().y - delta ;
+    /***************/
+  
+    //start background position
+    divMagnifier.style.backgroundPosition = "-" + (getCurCoordsInsideRect().x * koeff - delta) + "px " + "-" + (getCurCoordsInsideRect().y * koeff - delta) + "px";
     
-  var imagesDiv = document.querySelector(".images");
-  var active = document.querySelector(".active");
-    
-  imagesDiv.appendChild(divMagnifier); 
-  var hasPadding = (imagesDiv.offsetWidth - active.offsetWidth)/2;
-  console.log(hasPadding);
-  divMagnifier.style.backgroundImage = "url(" + document.querySelector(".active").src +")";
-  divMagnifier.style.backgroundSize = active.width * koeff + "px " + active.height * koeff + "px";
-  divMagnifier.style.left =  hasPadding > 0 ? getCurCoordsInsideRect().x - delta + hasPadding-8 : getCurCoordsInsideRect().x - delta;
-  divMagnifier.style.top = getCurCoordsInsideRect().y - delta ;
-  console.log(getCurCoordsInsideRect());
-  // divMagnifier.style.backgroundPosition = "-" + (getCurCoordsInsideRect().x * koeff - delta) + "px" + "-" + (getCurCoordsInsideRect().y * koeff - delta) + "px";
-  onmousemove = function(e){
-    var offsetsX =  active.offsetLeft;
-    var offsetsY =  active.offsetTop;  
-    //magnifier position
-    divMagnifier.style.left = e.offsetX - delta + offsetsX + "px";
-    divMagnifier.style.top = e.offsetY - delta + offsetsY + "px";
-
-    //отступы от края, koeff - коэффицент увеличения
-    divMagnifier.style.backgroundPosition = "-"+(e.offsetX * koeff  - delta ) + "px " + "-" + (e.offsetY * koeff - delta) +"px";
+    onmousemove = function(e){
+      var offsetsX =  activeDiv.offsetLeft;
+      var offsetsY =  activeDiv.offsetTop;  
+      //magnifier position
+      divMagnifier.style.left = e.offsetX - delta + offsetsX + "px";
+      divMagnifier.style.top = e.offsetY - delta + offsetsY + "px";
+      //offsets background
+      divMagnifier.style.backgroundPosition = "-"+(e.offsetX * koeff  - delta ) + "px " + "-" + (e.offsetY * koeff - delta) +"px";
+    }
   }
-}
 
 function getCurCoordsInsideRect() {
   var x = event.offsetX == undefined ? event.layerX : event.offsetX;
@@ -139,3 +152,8 @@ function getCurCoordsInsideRect() {
   return {x:x, y:y};
 }
 
+function altb(a, b)
+{
+  /*  returns true if a less than b, otherwise false */
+  return (a%b == a);
+}

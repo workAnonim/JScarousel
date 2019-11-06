@@ -47,7 +47,7 @@ section {
 }
 
 .imagesText{
-  text-align: right;
+  text-align: center;
   font: bold 10pt Arial;
   color: #1c4878;
 } 
@@ -72,6 +72,7 @@ section {
 }
 
 .image-list img {
+  margin: 0 auto;
   cursor: pointer;
   display: block;
   max-width: 100%;
